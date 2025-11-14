@@ -102,7 +102,6 @@ async def parse_city(session, city):
 
         images = ad.get("images", "-")
         for img in images:
-            print(img)
             if img:
                 path = "https://rms.kufar.by/v1/list_thumbs_2x/" + img['path']
                 save_new_image_to_db(path, ad_id)
