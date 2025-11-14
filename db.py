@@ -58,7 +58,7 @@ class Image(BaseModel):
 def create_db():
     try:
         with db:
-            db.create_tables([Post, User, Image])
+            db.create_tables([Post, User, Image], safe=True)
     except (OperationalError, ProgrammingError) as e:
         logger.exception(f"Failed to create database tables: {e}")
 
@@ -81,7 +81,7 @@ def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_des
                 return True
             return False
     except Exception as e:
-        logger.exception(f"Error saving recor to database. ID: [{id}]")
+        logger.exception(f"Error saving recor to database. ID: [{id}]. {e}")
 
 
 def get_or_create_user(id, is_bot, first_name):
@@ -90,7 +90,7 @@ def get_or_create_user(id, is_bot, first_name):
             'is_bot': is_bot,
             'first_name': first_name,
             'min_price': 1,
-            'max_price': os.getenv('MAX_PRICE_UNLIMITED'),
+            'max_price': float(os.getenv('MAX_PRICE_UNLIMITED')),
             'city': 'vitebsk',
             'is_active': False,
         })

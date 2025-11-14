@@ -2,7 +2,6 @@ import aiohttp
 import asyncio
 from db import save_new_post_to_db, save_new_image_to_db
 from logger import  logger
-from messages import post_text
 import signals
 
 # ✅ Словарь городов (Kufar использует region code)
@@ -33,7 +32,7 @@ async def fetch_ads(session, city, limit=30):
     )
 
     try:
-        async with session.get(url, timeout=20) as resp:
+        async with session.get(url, timeout=5) as resp:
             if resp.status == 200:
                 data = await resp.json()
                 return data
@@ -48,7 +47,7 @@ async def fetch_ads(session, city, limit=30):
 
 
 def get_address(parameters):
-    for parameter in parameters['account_parameters']:
+    for parameter in parameters.get('account_parameters', []):
         if parameter.get('p') and parameter.get('p') == "address":
             return parameter.get('v')
     else:
@@ -57,7 +56,7 @@ def get_address(parameters):
 
 def get_parameters(parameters):
     data = []
-    for parameter in parameters['ad_parameters']:
+    for parameter in parameters.get('ad_parameters', []):
         if parameter.get('pl') and parameter.get('pl') == "Общая площадь":
             data.append(f"Общая площадь: {parameter.get('v')} кв.м. ")
         elif parameter.get('pl') and parameter.get('pl') == "Комнат":
