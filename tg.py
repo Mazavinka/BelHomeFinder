@@ -156,7 +156,7 @@ async def send_post_with_images(user_id, images, message):
         images_count = min(len(images), 10)  # max images 10!
         for i in range(images_count):
             if i == 0:
-                media.append(InputMediaPhoto(media=images[i].image_src, caption=message))
+                media.append(InputMediaPhoto(media=images[i].image_src, caption=message, parse_mode="Markdown"))
             else:
                 media.append(InputMediaPhoto(media=images[i].image_src))
         await bot.send_media_group(chat_id=user_id, media=media)

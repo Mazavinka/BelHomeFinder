@@ -17,7 +17,13 @@ db = SqliteDatabase('database.db', pragmas={
 }, check_same_thread=False)
 
 
-class Post(Model):
+class BaseModel(Model):
+
+    class Meta:
+        database = db
+
+
+class Post(BaseModel):
     id = CharField(primary_key=True, null=False, unique=True)
     price_byn = FloatField(default=0.0, null=True)
     price_usd = FloatField(default=0.0, null=True)
@@ -29,11 +35,8 @@ class Post(Model):
     city = CharField(null=False)
     is_sent = BooleanField(null=False, default=False)
 
-    class Meta:
-        database = db
 
-
-class User(Model):
+class User(BaseModel):
     id = CharField(primary_key=True, null=False)
     is_bot = BooleanField(default=False)
     first_name = TextField()
@@ -44,18 +47,12 @@ class User(Model):
     city = CharField()
     is_active = BooleanField(default=False)
 
-    class Meta:
-        database = db
 
-
-class Image(Model):
+class Image(BaseModel):
     id = AutoField(null=False)
     image_src = TextField(unique=True)
     loaded_to = CharField(default='/img')
     from_post = ForeignKeyField(Post, backref='images', on_delete='CASCADE')
-
-    class Meta:
-        database = db
 
 
 def create_db():
