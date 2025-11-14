@@ -8,3 +8,5 @@ __pycache__/
 database.db
 .idea/
 .vscode/
+database.db-shm
+database.db-wal
