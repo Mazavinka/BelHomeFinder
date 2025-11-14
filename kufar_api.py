@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 from db import save_new_post_to_db, save_new_image_to_db
+from logger import  logger
 from messages import post_text
 import signals
 
@@ -18,7 +19,7 @@ CITY_FILTERS = {
 async def fetch_ads(session, city, limit=30):
     city_filters = CITY_FILTERS.get(city.lower())
     if not city_filters:
-        print(f"🚫 Неизвестный город: {city}")
+        logger.error(f"Unknown city {city}")
         return None
     url = (
         f"https://api.kufar.by/search-api/v2/search/rendered-paginated"
@@ -37,12 +38,12 @@ async def fetch_ads(session, city, limit=30):
                 data = await resp.json()
                 return data
             else:
-                print(f"⚠️ Ошибка {resp.status} при запросе {url}")
+                logger.error(f"Error {resp.status} while send request to {url}")
                 return None
     except asyncio.TimeoutError:
-        print(f"⏳ Таймаут при запросе Kufar ({city})")
+        logger.error(f"Timeout to send request [{city}]")
     except Exception as e:
-        print(f"❌ Ошибка при запросе Kufar: {e}")
+        logger.error(f"Error to send request {e}")
     return None
 
 
@@ -76,7 +77,7 @@ async def parse_city(session, city):
     """Парсит конкретный город"""
     data = await fetch_ads(session, city)
     if not data or "ads" not in data:
-        print(f"⚠️ Нет данных для города: {city}")
+        logger.error(f"No data to city: {city}")
         return
 
     for ad in data["ads"]:
@@ -107,7 +108,7 @@ async def parse_city(session, city):
                 save_new_image_to_db(path, ad_id)
 
         if saved:
-            print(f"✅ Новый пост для {city}: {short_description}")
+            logger.info(f"New post [{ad_id}] for city {city}")
 
 
 def price_to_float(price_):
@@ -120,11 +121,11 @@ def price_to_float(price_):
 
 async def start_parse(interval=20):
     """Запускает парсер с заданным интервалом"""
-    print("🚀 Парсер запущен")
+    logger.info(f"Parser has been started")
     async with aiohttp.ClientSession() as session:
         while True:
             for city in CITY_FILTERS.keys():
                 await parse_city(session, city)
                 await asyncio.sleep(1)  # небольшая пауза между городами
-            print(f"♻️ Цикл парсинга завершён, жду {interval} сек...")
+            logger.info(f"Parsing complete. Waiting: {interval} sec...")
             await asyncio.sleep(interval)

@@ -3,8 +3,8 @@ from peewee import *
 from datetime import datetime
 from dotenv import load_dotenv
 import os
-from playhouse.signals import Model, post_save, post_delete
-
+from playhouse.signals import Model
+from logger import logger
 
 load_dotenv()
 
@@ -56,60 +56,86 @@ class Image(BaseModel):
 
 
 def create_db():
-    with db:
-        db.create_tables([Post, User, Image])
+    try:
+        with db:
+            db.create_tables([Post, User, Image])
+    except (OperationalError, ProgrammingError) as e:
+        logger.error(f"Failed to create database tables: {e}")
 
 
 def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_description, post_url, city):
-    with db.atomic():
-        new_post, created = Post.get_or_create(id=id, defaults={
-            'price_byn': price_byn,
-            'price_usd': price_usd,
-            'parameters': parameters,
-            'address': address,
-            'short_description': short_description,
-            'post_url': post_url,
-            'city': city,
-            'is_sent': False
-        })
-        if created:
-            print(new_post, city)
-            return True
+    try:
+        with db.atomic():
+            new_post, created = Post.get_or_create(id=id, defaults={
+                'price_byn': price_byn,
+                'price_usd': price_usd,
+                'parameters': parameters,
+                'address': address,
+                'short_description': short_description,
+                'post_url': post_url,
+                'city': city,
+                'is_sent': False
+            })
+            if created:
+                logger.info(f"The new record has been successfully added to database. ID: [{id}]")
+                return True
+            return False
+    except Exception as e:
+        logger.error(f"Error saving recor to database. ID: [{id}]")
 
 
 def get_or_create_user(id, is_bot, first_name):
-    new_user, created = User.get_or_create(id=id, defaults={
-        'is_bot': is_bot,
-        'first_name': first_name,
-        'min_price': 1,
-        'max_price': os.getenv('MAX_PRICE_UNLIMITED'),
-        'city': 'vitebsk',
-        'is_active': False,
-    })
-
-    return new_user, created
+    try:
+        new_user, created = User.get_or_create(id=id, defaults={
+            'is_bot': is_bot,
+            'first_name': first_name,
+            'min_price': 1,
+            'max_price': os.getenv('MAX_PRICE_UNLIMITED'),
+            'city': 'vitebsk',
+            'is_active': False,
+        })
+        return new_user, created
+    except(OperationalError, IntegrityError) as e:
+        logger.error(f"Error creating or getting user [{id}]: {e}")
 
 
 def save_new_image_to_db(src, post_id):
-    if src and post_id:
+    if not src or not post_id:
+        return False
+
+    try:
         with db.atomic():
             new_image = Image.insert(image_src=src, from_post=post_id).on_conflict_ignore().execute()
         if new_image:
-            print(new_image)
+            logger.info(f"Image for post [{post_id}]")
             return True
+    except (OperationalError, IntegrityError) as e:
+        logger.error(f"Failed to save image for post [{post_id}]")
+        return False
 
 
 def get_last_five_posts(city, min_price, max_price, limit):
-    last_posts = Post.select().where(
-        (Post.city == city) &
-        (Post.price_byn >= min_price) &
-        (Post.price_byn <= max_price)).order_by(Post.date.desc()).limit(limit)
-    return last_posts
+    try:
+        min_price = float(min_price)
+        max_price = float(max_price)
+        last_posts = Post.select().where(
+            (Post.city == city) &
+            (Post.price_byn >= min_price) &
+            (Post.price_byn <= max_price)).order_by(Post.date.desc()).limit(limit)
+        return last_posts
+    except (OperationalError, DataError, ValueError) as e:
+        logger.error(f"Failed to get posts for city [{city}]: {e}")
+        return []
 
 
 def get_active_users(city):
-    active_users = User.select().where((User.city == city) & (User.is_active == True))
-    return active_users
+    try:
+        city = str(city)
+        active_users = User.select().where((User.city == city) & (User.is_active == True))
+        return active_users
+    except(OperationalError, DataError, ValueError) as e:
+        logger.error(f"Failed to get active users for city [{city}]: {e}")
+        return []
 
 
 if __name__ == "__main__":

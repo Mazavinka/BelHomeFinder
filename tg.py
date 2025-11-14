@@ -9,6 +9,7 @@ from db import get_or_create_user, User
 from messages import (start_message_text, min_price_text,
                       max_price_text, new_price_accepted,
                       need_number_text, city_text)
+from logger import logger
 
 load_dotenv()
 
@@ -137,8 +138,12 @@ async def set_max_price(message, state):
 async def send_message_to_all(users_group, message):
     for user in users_group:
         user_id = user.id
-        await bot.send_message(user_id, message, parse_mode="Markdown")
-        await asyncio.sleep(0.5)
+        try:
+            await bot.send_message(user_id, message, parse_mode="Markdown")
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.warning(f"Message to user [{user_id}] not send: {e}")
+            await asyncio.sleep(0.5)
 
 
 async def message_to_new_user(user_id, message):
@@ -159,8 +164,14 @@ async def send_post_with_images(user_id, images, message):
                 media.append(InputMediaPhoto(media=images[i].image_src, caption=message, parse_mode="Markdown"))
             else:
                 media.append(InputMediaPhoto(media=images[i].image_src))
-        await bot.send_media_group(chat_id=user_id, media=media)
-        await asyncio.sleep(1.1)
+        if not media:
+            logger.warning(f"Error to send media to user [{user_id}]. Media is empty.")
+        try:
+            await bot.send_media_group(chat_id=user_id, media=media)
+            await asyncio.sleep(1.1)
+        except Exception as e:
+            logger.error(f"Error to send message to user [{user_id}]")
+
 
 if __name__ == "__main__":
     asyncio.run(start_bot())
