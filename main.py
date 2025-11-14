@@ -2,7 +2,7 @@ import asyncio
 import signals
 from db import get_last_five_posts, get_active_users
 from tg import start_bot, message_to_new_user, send_message_to_all, send_post_with_images
-from kufar_api import start_parse
+from api import start_parse
 from messages import post_text
 
 

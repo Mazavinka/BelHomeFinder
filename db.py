@@ -107,7 +107,6 @@ def save_new_image_to_db(src, post_id):
         with db.atomic():
             new_image = Image.insert(image_src=src, from_post=post_id).on_conflict_ignore().execute()
         if new_image:
-            logger.info(f"Image for post [{post_id}]")
             return True
     except (OperationalError, IntegrityError) as e:
         logger.exception(f"Failed to save image for post [{post_id}]")
