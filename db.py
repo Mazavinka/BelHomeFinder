@@ -60,7 +60,7 @@ def create_db():
         with db:
             db.create_tables([Post, User, Image])
     except (OperationalError, ProgrammingError) as e:
-        logger.error(f"Failed to create database tables: {e}")
+        logger.exception(f"Failed to create database tables: {e}")
 
 
 def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_description, post_url, city):
@@ -81,7 +81,7 @@ def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_des
                 return True
             return False
     except Exception as e:
-        logger.error(f"Error saving recor to database. ID: [{id}]")
+        logger.exception(f"Error saving recor to database. ID: [{id}]")
 
 
 def get_or_create_user(id, is_bot, first_name):
@@ -95,8 +95,8 @@ def get_or_create_user(id, is_bot, first_name):
             'is_active': False,
         })
         return new_user, created
-    except(OperationalError, IntegrityError) as e:
-        logger.error(f"Error creating or getting user [{id}]: {e}")
+    except (OperationalError, IntegrityError) as e:
+        logger.exception(f"Error creating or getting user [{id}]: {e}")
 
 
 def save_new_image_to_db(src, post_id):
@@ -110,7 +110,7 @@ def save_new_image_to_db(src, post_id):
             logger.info(f"Image for post [{post_id}]")
             return True
     except (OperationalError, IntegrityError) as e:
-        logger.error(f"Failed to save image for post [{post_id}]")
+        logger.exception(f"Failed to save image for post [{post_id}]")
         return False
 
 
@@ -124,7 +124,7 @@ def get_last_five_posts(city, min_price, max_price, limit):
             (Post.price_byn <= max_price)).order_by(Post.date.desc()).limit(limit)
         return last_posts
     except (OperationalError, DataError, ValueError) as e:
-        logger.error(f"Failed to get posts for city [{city}]: {e}")
+        logger.exception(f"Failed to get posts for city [{city}]: {e}")
         return []
 
 
@@ -134,7 +134,7 @@ def get_active_users(city):
         active_users = User.select().where((User.city == city) & (User.is_active == True))
         return active_users
     except(OperationalError, DataError, ValueError) as e:
-        logger.error(f"Failed to get active users for city [{city}]: {e}")
+        logger.exception(f"Failed to get active users for city [{city}]: {e}")
         return []
 
 

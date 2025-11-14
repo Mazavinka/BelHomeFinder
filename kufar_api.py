@@ -41,9 +41,9 @@ async def fetch_ads(session, city, limit=30):
                 logger.error(f"Error {resp.status} while send request to {url}")
                 return None
     except asyncio.TimeoutError:
-        logger.error(f"Timeout to send request [{city}]")
+        logger.exception(f"Timeout to send request [{city}]")
     except Exception as e:
-        logger.error(f"Error to send request {e}")
+        logger.exception(f"Error to send request {e}")
     return None
 
 

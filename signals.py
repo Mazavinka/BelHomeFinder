@@ -26,4 +26,4 @@ def safe_put(queue, item):
     except RuntimeError:
         pass
     except Exception as e:
-        logger.error(f"Error queue: {e}")
+        logger.exception(f"Error queue: {e}")

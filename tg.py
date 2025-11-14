@@ -114,6 +114,7 @@ async def set_min_price(message, state):
         await message.answer(max_price_text(), parse_mode="Markdown")
         await state.set_state(PriceRange.waiting_for_max_price)
     except ValueError:
+        logger.error(f"User type wrong symbols in min_price")
         await message.answer(need_number_text(), parse_mode="Markdown")
 
 
@@ -132,6 +133,7 @@ async def set_max_price(message, state):
         await message.answer(new_price_accepted(price_min, price_max), parse_mode="Markdown")
         await render_settings_menu(user, message)
     except ValueError:
+        logger.error(f"User type wrong symbols in max_price")
         await message.answer(need_number_text(), parse_mode="Markdown")
 
 
@@ -142,7 +144,7 @@ async def send_message_to_all(users_group, message):
             await bot.send_message(user_id, message, parse_mode="Markdown")
             await asyncio.sleep(0.5)
         except Exception as e:
-            logger.warning(f"Message to user [{user_id}] not send: {e}")
+            logger.exception(f"Message to user [{user_id}] not send: {e}")
             await asyncio.sleep(0.5)
 
 
@@ -170,7 +172,7 @@ async def send_post_with_images(user_id, images, message):
             await bot.send_media_group(chat_id=user_id, media=media)
             await asyncio.sleep(1.1)
         except Exception as e:
-            logger.error(f"Error to send message to user [{user_id}]")
+            logger.exception(f"Error to send message to user [{user_id}]")
 
 
 if __name__ == "__main__":
