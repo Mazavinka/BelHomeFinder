@@ -1,6 +1,6 @@
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.client.default import DefaultBotProperties
 from aiogram.exceptions import TelegramBadRequest
@@ -31,8 +31,7 @@ async def command_start(message):
                                  message.from_user.first_name)
     msg = await message.answer(start_message_text(message.from_user.first_name,
                                                   user.city, user.min_price,
-                                                  user.max_price, user.is_active))
-    await render_settings_menu(user, msg)
+                                                  user.max_price, user.is_active), reply_markup=add_button_settings())
 
 
 @dp.message(Command("settings"))
@@ -59,9 +58,9 @@ async def render_settings_menu(user, message):
     try:
         await message.edit_text("⚙️ *Настройки* ⚙️", reply_markup=kb)
     except TelegramBadRequest:
-        await message.edit_reply_markup(reply_markup=kb)
-    except:
-        await message.answer("⚙️ *Настройки* ⚙️", reply_markup=kb)
+        pass  #await message.edit_reply_markup(reply_markup=kb)
+
+    return await message.answer("⚙️ *Настройки* ⚙️", reply_markup=kb)
 
 
 @dp.callback_query(lambda c: c.data == "change_city")
@@ -191,6 +190,27 @@ async def send_post_with_images(user_id, images, message):
         logger.exception(f"Error to send media group to user [{user_id}]: {e}")
 
     await asyncio.sleep(0.8)
+
+
+def add_button_settings():
+    keyboard_with_settings = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="⚙️ Настройки ⚙️")]
+        ],
+        resize_keyboard=True
+    )
+    return keyboard_with_settings
+
+
+@dp.message(F.text == "⚙️ Настройки ⚙️")
+async def open_settings_via_button(message):
+    user, _ = get_or_create_user(
+        message.from_user.id,
+        message.from_user.is_bot,
+        message.from_user.first_name
+    )
+    await render_settings_menu(user, message)
+
 
 
 if __name__ == "__main__":
