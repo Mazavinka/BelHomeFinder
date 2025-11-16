@@ -9,11 +9,11 @@ from logger import logger
 load_dotenv()
 
 db = SqliteDatabase('database.db', pragmas={
-    'journal_mode': 'wal',
+    'journal_mode': 'delete',
     'cache_size': -1024 * 64,
-    'foreign_key': 1,
+    'foreign_keys': 1,
     'ignore_check_constraints': 0,
-    'synchronous': 0
+    'synchronous': 1
 }, check_same_thread=False)
 
 
