@@ -7,7 +7,7 @@ from aiogram.exceptions import TelegramBadRequest
 import asyncio
 import os
 from dotenv import load_dotenv
-from db import get_or_create_user, User
+from db import get_or_create_user, get_user_by_id
 from messages import (start_message_text, min_price_text,
                       max_price_text, new_price_accepted,
                       need_number_text, city_text)
@@ -186,6 +186,13 @@ async def send_post_with_images(user_id, images, message):
 
     try:
         await bot.send_media_group(chat_id=user_id, media=media)
+    except TelegramBadRequest as e:
+        if "USER_IS_BLOCKED" in str(e):
+            logger.info(f"User [{user_id}] was block bot")
+            user = get_user_by_id(user_id)
+            user.is_active = False
+            user.save()
+
     except Exception as e:
         logger.exception(f"Error to send media group to user [{user_id}]: {e}")
 

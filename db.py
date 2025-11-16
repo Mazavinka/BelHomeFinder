@@ -112,6 +112,14 @@ def save_new_image_to_db(src, post_id):
         logger.exception(f"Failed to save image for post [{post_id}]")
         return False
 
+def get_user_by_id(user_id):
+    try:
+        user = User.select().where(User.id == user_id)
+        return user
+    except Exception as e:
+        logger.exception(f"Error. Can't found User with id: [{user_id}]. {e}")
+
+
 
 def get_last_five_posts(city, min_price, max_price, limit):
     try:
