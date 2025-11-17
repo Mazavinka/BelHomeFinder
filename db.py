@@ -8,7 +8,7 @@ from logger import logger
 
 load_dotenv()
 
-db = SqliteDatabase('database.db', pragmas={
+db = SqliteDatabase(os.getenv("DB_PATH"), pragmas={
     'journal_mode': 'delete',
     'cache_size': -1024 * 64,
     'foreign_keys': 1,
@@ -34,6 +34,9 @@ class Post(BaseModel):
     date = DateTimeField(default=datetime.now)
     city = CharField(null=False)
     is_sent = BooleanField(null=False, default=False)
+    lat = CharField(default='', null=True)
+    lon = CharField(default='', null=True)
+    city_district = CharField(default='', null=True)
 
 
 class User(BaseModel):
@@ -63,7 +66,8 @@ def create_db():
         logger.exception(f"Failed to create database tables: {e}")
 
 
-def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_description, post_url, city):
+def save_new_post_to_db(id, price_byn, price_usd, parameters, address,
+                        short_description, post_url, city, lat, lon, city_district):
     try:
         with db.atomic():
             new_post, created = Post.get_or_create(id=id, defaults={
@@ -74,7 +78,10 @@ def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_des
                 'short_description': short_description,
                 'post_url': post_url,
                 'city': city,
-                'is_sent': False
+                'is_sent': False,
+                'lat': lat,
+                'lon': lon,
+                'city_district': city_district
             })
             if created:
                 logger.info(f"The new record has been successfully added to database. ID: [{id}]")
@@ -111,6 +118,7 @@ def save_new_image_to_db(src, post_id):
     except (OperationalError, IntegrityError) as e:
         logger.exception(f"Failed to save image for post [{post_id}]")
         return False
+
 
 def get_user_by_id(user_id):
     try:
