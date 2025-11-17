@@ -34,8 +34,8 @@ class Post(BaseModel):
     date = DateTimeField(default=datetime.now)
     city = CharField(null=False)
     is_sent = BooleanField(null=False, default=False)
-    lat = CharField(default='', null=True)
-    lon = CharField(default='', null=True)
+    lat = FloatField(null=True)
+    lon = FloatField(null=True)
     city_district = CharField(default='', null=True)
 
 

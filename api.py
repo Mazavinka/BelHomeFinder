@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 from db import save_new_post_to_db, save_new_image_to_db
 from logger import logger
-from location_api import get_city_district
+from location import load_district_geojson, get_district_by_point
 import signals
 
 # ✅ Словарь городов (Kufar использует region code)
@@ -76,11 +76,9 @@ def get_parameters(parameters):
 def get_location(parameters):
     for parameter in parameters.get('ad_parameters', []):
         if parameter.get('pl') and parameter.get('pl') == "Координаты":
-            lon = str(parameter.get('v')[0])
-            lat = str(parameter.get('v')[1])
+            lon = parameter.get('v')[0]
+            lat = parameter.get('v')[1]
             return lat, lon
-        else:
-            return None
 
 
 
@@ -101,7 +99,7 @@ async def parse_city(session, city):
         post_url = ad.get("ad_link", "")
         parameters = get_parameters(ad)
         lat, lon = get_location(ad)
-        city_district = await get_city_district(lat, lon)
+        city_district = get_district_by_point(lat, lon, load_district_geojson(city))
         saved = save_new_post_to_db(
             id=ad_id,
             price_byn=price_byn,
