@@ -35,7 +35,14 @@ class Post(BaseModel):
     is_sent = BooleanField(null=False, default=False)
     lat = FloatField(null=True)
     lon = FloatField(null=True)
-    city_district = CharField(default='', null=True)
+    city_district = CharField(null=True)
+
+    nearby_subway = CharField(null=True, default='')
+    nearby_pharmacy = CharField(null=True, default='')
+    nearby_kindergarten = CharField(null=True, default='')
+    nearby_school = CharField(null=True, default='')
+    nearby_bank = CharField(null=True, default='')
+    nearby_shop = CharField(null=True, default='')
 
 
 class User(BaseModel):
@@ -66,8 +73,8 @@ def create_db():
         logger.exception(f"Failed to create database tables: {e}")
 
 
-def save_new_post_to_db(id, price_byn, price_usd, parameters, address,
-                        short_description, post_url, city, lat, lon, city_district):
+def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_description,
+                        post_url, city, lat, lon, city_district, subway, pharmacy, kindergarten, school, bank, shop):
     try:
         with db.atomic():
             new_post, created = Post.get_or_create(id=id, defaults={
@@ -81,7 +88,13 @@ def save_new_post_to_db(id, price_byn, price_usd, parameters, address,
                 'is_sent': False,
                 'lat': lat,
                 'lon': lon,
-                'city_district': city_district
+                'city_district': city_district,
+                'nearby_subway': subway,
+                'nearby_pharmacy': pharmacy,
+                'nearby_kindergarten': kindergarten,
+                'nearby_school': school,
+                'nearby_bank': bank,
+                'nearby_shop': shop
             })
             if created:
                 logger.info(f"The new record has been successfully added to database. ID: [{id}]")
@@ -131,6 +144,7 @@ def get_user_by_id(user_id):
 
 def get_last_five_posts(city, min_price, max_price, limit, district):
     try:
+        district = str(district).strip().lower()
         min_price = float(min_price)
         max_price = float(max_price)
         last_posts = Post.select().where(
@@ -156,10 +170,11 @@ def get_active_users(city, district):
 
 
 def get_districts_from_database(city):
+    city = str(city).strip().lower()
     data = {"minsk": [], "vitebsk": [], "grodno": [], "mogilev": [], "gomel": [], "brest": []}
     for post in Post.select():
         if post.city_district not in data[post.city]:
-            data[post.city].append(post.city_district)
+            data[post.city].append(str(post.city_district).strip().lower())
     return data[city]
 
 

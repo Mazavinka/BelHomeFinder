@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 from db import save_new_post_to_db, save_new_image_to_db
 from logger import logger
-from location import load_district_geojson, get_district_by_point
+from location import load_district_geojson, get_district_by_point, find_nearby
 import signals
 
 # ✅ Словарь городов (Kufar использует region code)
@@ -99,7 +99,16 @@ async def parse_city(session, city):
         post_url = ad.get("ad_link", "")
         parameters = get_parameters(ad)
         lat, lon = get_location(ad)
-        city_district = get_district_by_point(lat, lon, load_district_geojson(city))
+        city_district = str(get_district_by_point(lat, lon, load_district_geojson(city))).strip().lower() or ''
+
+        nearby_obj = find_nearby(lat, lon, 1000)
+        subway = ', '.join(list(nearby_obj.get('subway', []))[:5]) if nearby_obj.get('subway') else ''
+        pharmacy = ', '.join(list(nearby_obj.get('pharmacy', []))[:5]) if nearby_obj.get('pharmacy') else ''
+        kindergarten = ', '.join(list(nearby_obj.get('kindergarten', []))[:5]) if nearby_obj.get('kindergarten') else ''
+        school = ', '.join(list(nearby_obj.get('school', []))[:5]) if nearby_obj.get('school') else ''
+        bank = ', '.join(list(nearby_obj.get('bank', []))[:5]) if nearby_obj.get('bank') else ''
+        convenience = ', '.join(list(nearby_obj.get('convenience', []))[:5]) if nearby_obj.get('convenience') else ''
+
         saved = save_new_post_to_db(
             id=ad_id,
             price_byn=price_byn,
@@ -111,7 +120,13 @@ async def parse_city(session, city):
             city=city,
             lat=lat,
             lon=lon,
-            city_district=city_district
+            city_district=city_district,
+            subway=subway,
+            pharmacy=pharmacy,
+            kindergarten=kindergarten,
+            school=school,
+            bank=bank,
+            shop=convenience
 
         )
 

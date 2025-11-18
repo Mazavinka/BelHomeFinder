@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMedia
     KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.client.default import DefaultBotProperties
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -230,20 +230,27 @@ async def send_post_with_images(user_id, images, message):
             media.append(InputMediaPhoto(media=images[i].image_src, caption=message, parse_mode='Markdown'))
         else:
             media.append(InputMediaPhoto(media=images[i].image_src))
-
-    try:
-        await bot.send_media_group(chat_id=user_id, media=media)
-    except TelegramBadRequest as e:
-        if "USER_IS_BLOCKED" in str(e):
-            logger.info(f"User [{user_id}] was block bot")
-            user = get_user_by_id(user_id)
-            user.is_active = False
-            user.save()
-
-    except Exception as e:
-        logger.exception(f"Error to send media group to user [{user_id}]: {e}")
-
-    await asyncio.sleep(0.8)
+    while True:
+        try:
+            await bot.send_media_group(chat_id=user_id, media=media)
+            break
+        except TelegramRetryAfter as e:
+            logger.warning(f"FloodWait {e.retry_after} sec for user {user_id}")
+            await asyncio.sleep(e.retry_after)
+        except TelegramBadRequest as e:
+            if "USER_IS_BLOCKED" in str(e):
+                logger.info(f"User [{user_id}] was block bot")
+                user = get_user_by_id(user_id)
+                user.is_active = False
+                user.save()
+                return
+            else:
+                logger.exception(f"BadRequest for {user_id}: {e}")
+                return
+        except Exception as e:
+            logger.exception(f"Error to send media group to user [{user_id}]: {e}")
+            return
+    await asyncio.sleep(1.5)
 
 
 def add_button_settings():

@@ -93,7 +93,9 @@ def post_text(post):
 📝 *Описание:*
 *{post.short_description}...*
 
-🔗 [Открыть объявление на сайте]({post.post_url})
+{add_nearby_text(post)}
+
+🔗 [Открыть объявление на сайте]({post.post_url})    
 """
 
 
@@ -109,6 +111,35 @@ def city_name_to_rus(city_name):
 
     if city_name in cities:
         return cities[city_name]
+
+
+def add_nearby_text(post):
+    header = "🌀 *В радиусе километра есть:*\n"
+    subway = f"Ⓜ️ *Метро:* {post.nearby_subway}" if post.nearby_subway else ""
+    pharmacy = f"💊 *Аптеки:* {post.nearby_pharmacy}" if post.nearby_pharmacy else ""
+    kindergarten = f"🧸 *Детские учреждения:* {post.nearby_kindergarten}" if post.nearby_kindergarten else ""
+    school = f"🏫 *Школы:* {post.nearby_school}" if post.nearby_school else ""
+    bank = f"🏦 *Банки:* {post.nearby_bank}" if post.nearby_bank else ""
+    shop = f"🛒 *Магазины:* {post.nearby_shop}" if post.nearby_shop else ""
+
+    text = []
+
+    if subway:
+        text.append(subway)
+    if pharmacy:
+        text.append(pharmacy)
+    if kindergarten:
+        text.append(kindergarten)
+    if school:
+        text.append(school)
+    if bank:
+        text.append(bank)
+    if shop:
+        text.append(shop)
+
+    if text:
+        return header + "\n".join(text)
+
 
 
 if __name__ == "__main__":
