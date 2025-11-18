@@ -1,13 +1,14 @@
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, ReplyKeyboardMarkup, \
+    KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.client.default import DefaultBotProperties
 from aiogram.exceptions import TelegramBadRequest
 import asyncio
 import os
 from dotenv import load_dotenv
-from db import get_or_create_user, get_user_by_id
+from db import get_or_create_user, get_user_by_id, get_districts_from_database
 from messages import (start_message_text, min_price_text,
                       max_price_text, new_price_accepted,
                       need_number_text, city_text)
@@ -19,26 +20,44 @@ token = os.getenv('TG_BOT_TOKEN')
 bot = Bot(token, default=DefaultBotProperties(parse_mode='Markdown'))
 dp = Dispatcher()
 
+setting_messages = {}
+
 
 class PriceRange(StatesGroup):
     waiting_for_min_price = State()
     waiting_for_max_price = State()
 
 
+class CityAndDistrict(StatesGroup):
+    waiting_for_city = State()
+    waiting_for_district = State()
+
+
 @dp.message(Command("start"))
 async def command_start(message):
     user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot,
                                  message.from_user.first_name)
-    msg = await message.answer(start_message_text(message.from_user.first_name,
-                                                  user.city, user.min_price,
-                                                  user.max_price, user.is_active), reply_markup=add_button_settings())
+    await message.answer(start_message_text(message.from_user.first_name,
+                                            user.city, user.min_price,
+                                            user.max_price, user.is_active), reply_markup=add_button_settings())
 
 
+@dp.message(F.text == "⚙️ Настройки ⚙️")
 @dp.message(Command("settings"))
 async def command_settings(message):
-    user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot,
-                                 message.from_user.first_name)
-    msg = await message.answer("⚙️ *Настройки* ⚙️")
+    user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot, message.from_user.first_name)
+    user_id = message.from_user.id
+
+    old_message_id = setting_messages.get(user_id)
+    if old_message_id:
+        try:
+            await bot.delete_message(message.chat.id, old_message_id)
+        except:
+            pass
+
+    msg = await message.answer("⚙️ Настройки ⚙️")
+    setting_messages[user_id] = msg.message_id
+
     await render_settings_menu(user, msg)
 
 
@@ -58,13 +77,14 @@ async def render_settings_menu(user, message):
     try:
         await message.edit_text("⚙️ *Настройки* ⚙️", reply_markup=kb)
     except TelegramBadRequest:
-        pass  #await message.edit_reply_markup(reply_markup=kb)
-
-    return await message.answer("⚙️ *Настройки* ⚙️", reply_markup=kb)
+        await message.edit_reply_markup(reply_markup=kb)
 
 
 @dp.callback_query(lambda c: c.data == "change_city")
-async def choose_city(callback):
+async def choose_city(callback, state):
+
+    await state.set_state(CityAndDistrict.waiting_for_city)
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🌉 Брест 🌉", callback_data="city_brest")],
         [InlineKeyboardButton(text="🌆 Витебск 🌆", callback_data="city_vitebsk")],
@@ -73,6 +93,8 @@ async def choose_city(callback):
         [InlineKeyboardButton(text="🏙 Минск 🏙", callback_data="city_minsk")],
         [InlineKeyboardButton(text="🌇 Могилёв 🌇", callback_data="city_mogilev")]
     ])
+
+    setting_messages[callback.from_user.id] = callback.message.message_id
 
     await callback.message.edit_text(city_text(), reply_markup=kb)
 
@@ -88,16 +110,41 @@ async def change_activity(callback):
         user.is_active = False
         user.save()
         await callback.message.edit_text(f"🚫 Рассылка *приостановлена*. Ты можешь включить её снова в любое время.")
-    # await render_settings_menu(user, callback.message)
 
 
-@dp.callback_query(lambda c: c.data.startswith("city_"))
-async def city_selected(callback):
+@dp.callback_query(CityAndDistrict.waiting_for_city, F.data.startswith("city_"))
+async def city_selected(callback, state):
     city = callback.data.split('_', 1)[1]
+
+    await state.update_data(city=city)
+
+    await state.set_state(CityAndDistrict.waiting_for_district)
+
+    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+
+    districts = get_districts_from_database(city)
+
+    keyboard_with_districts = [[InlineKeyboardButton(text=district, callback_data=f"districts_{district}")] for district
+                               in districts]
+    keyboard_with_districts.append([InlineKeyboardButton(text="*Все районы*", callback_data="districts_all")])
+    kb = InlineKeyboardMarkup(inline_keyboard=keyboard_with_districts)
+
+    await callback.message.edit_text(f"✅ Город успешно изменён на *{city}*. Теперь выберите район: ", reply_markup=kb)
+
+
+@dp.callback_query(CityAndDistrict.waiting_for_district, F.data.startswith("districts_"))
+async def district_selected(callback, state):
+    district = callback.data.split('_', 1)[1]
+    data = await state.get_data()
+    city = data['city']
     user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     user.city = city
+    user.district = district
     user.save()
-    await callback.message.edit_text(f"✅ Город успешно изменён на *{city}* 🏙")
+
+    await state.clear()
+
+    await callback.message.edit_text(f"Вы выбрали: {district}. В любой момент можете изменить свой выбор")
     await render_settings_menu(user, callback.message)
 
 
@@ -207,17 +254,6 @@ def add_button_settings():
         resize_keyboard=True
     )
     return keyboard_with_settings
-
-
-@dp.message(F.text == "⚙️ Настройки ⚙️")
-async def open_settings_via_button(message):
-    user, _ = get_or_create_user(
-        message.from_user.id,
-        message.from_user.is_bot,
-        message.from_user.first_name
-    )
-    await render_settings_menu(user, message)
-
 
 
 if __name__ == "__main__":

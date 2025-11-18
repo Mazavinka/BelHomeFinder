@@ -19,7 +19,7 @@ async def handle_new_is_active_users():
 
 
 async def send_new_post_to_users(city, post):
-    active_users = get_active_users(city)
+    active_users = get_active_users(city, post.city_district)
     users_with_true_price_filters = [user for user in active_users if user.min_price <= post.price_byn <= user.max_price]
     if not post.is_sent:
         if post.images:
@@ -32,7 +32,7 @@ async def send_new_post_to_users(city, post):
 
 
 async def send_posts_for_new_user(new_user):
-    posts = get_last_five_posts(new_user.city, new_user.min_price, new_user.max_price, 5)
+    posts = get_last_five_posts(new_user.city, new_user.min_price, new_user.max_price, 5, new_user.district)
     for post in posts:
         if post.images:
             await send_post_with_images(new_user.id, post.images, post_text(post))

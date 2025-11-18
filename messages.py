@@ -88,6 +88,7 @@ def post_text(post):
 💰 *Цена:* {"Договорная" if post.price_byn == 0 else post.price_byn} BYN ({post.price_usd} USD)"
 📏 *Параметры:* {post.parameters}
 📍 *Адрес:* {post.address}
+🗺️ *Район:* {post.city_district or "Не указан"}
 
 📝 *Описание:*
 *{post.short_description}...*

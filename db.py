@@ -18,7 +18,6 @@ db = SqliteDatabase(os.getenv("DB_PATH"), pragmas={
 
 
 class BaseModel(Model):
-
     class Meta:
         database = db
 
@@ -48,6 +47,7 @@ class User(BaseModel):
     min_price = FloatField()
     max_price = FloatField()
     city = CharField()
+    district = CharField()
     is_active = BooleanField(default=False)
 
 
@@ -100,6 +100,7 @@ def get_or_create_user(id, is_bot, first_name):
             'max_price': float(os.getenv('MAX_PRICE_UNLIMITED')),
             'city': 'vitebsk',
             'is_active': False,
+            'district': 'all',
         })
         return new_user, created
     except (OperationalError, IntegrityError) as e:
@@ -128,28 +129,38 @@ def get_user_by_id(user_id):
         logger.exception(f"Error. Can't found User with id: [{user_id}]. {e}")
 
 
-def get_last_five_posts(city, min_price, max_price, limit):
+def get_last_five_posts(city, min_price, max_price, limit, district):
     try:
         min_price = float(min_price)
         max_price = float(max_price)
         last_posts = Post.select().where(
             (Post.city == city) &
             (Post.price_byn >= min_price) &
-            (Post.price_byn <= max_price)).order_by(Post.date.desc()).limit(limit)
-        return last_posts
+            (Post.price_byn <= max_price)).order_by(Post.date.desc())
+        if district and district != "all":
+            last_posts = last_posts.where(Post.city_district == district)
+        return last_posts.limit(limit)
     except (OperationalError, DataError, ValueError) as e:
         logger.exception(f"Failed to get posts for city [{city}]: {e}")
         return []
 
 
-def get_active_users(city):
+def get_active_users(city, district):
     try:
         city = str(city)
-        active_users = User.select().where((User.city == city) & (User.is_active == True))
+        active_users = User.select().where((User.city == city) & (User.is_active == True) & ((User.district == "all") | (User.district == district)))
         return active_users
-    except(OperationalError, DataError, ValueError) as e:
+    except (OperationalError, DataError, ValueError) as e:
         logger.exception(f"Failed to get active users for city [{city}]: {e}")
         return []
+
+
+def get_districts_from_database(city):
+    data = {"minsk": [], "vitebsk": [], "grodno": [], "mogilev": [], "gomel": [], "brest": []}
+    for post in Post.select():
+        if post.city_district not in data[post.city]:
+            data[post.city].append(post.city_district)
+    return data[city]
 
 
 if __name__ == "__main__":
