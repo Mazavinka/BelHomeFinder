@@ -10,4 +10,4 @@ database.db
 .vscode/
 database.db-shm
 database.db-wal
-./geo/belarus-251117.osm.pbf
+geo/belarus-251117.osm.pbf
