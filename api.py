@@ -57,6 +57,7 @@ def get_address(parameters):
 
 def get_parameters(parameters):
     data = []
+    data = {'': '', }
     for parameter in parameters.get('ad_parameters', []):
         if parameter.get('pl') and parameter.get('pl') == "Общая площадь":
             data.append(f"Общая площадь: {parameter.get('v')} кв.м. ")

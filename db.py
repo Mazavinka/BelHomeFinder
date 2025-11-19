@@ -3,6 +3,7 @@ from peewee import *
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+from playhouse.migrate import *
 from playhouse.signals import Model
 from logger import logger
 
@@ -176,6 +177,20 @@ def get_districts_from_database(city):
         if post.city_district not in data[post.city]:
             data[post.city].append(str(post.city_district).strip().lower())
     return data[city]
+
+
+def add_column_to_table(model_name, new_column, field_type,  db=db):
+    migrator = SqliteMigrator(db)
+    migrate(
+        migrator.add_column(model_name, new_column, field_type)
+    )
+
+
+def drop_column_from_table(model_name, column):
+    migrator = SqliteMigrator(db)
+    migrate(
+        migrator.drop_column(model_name, column)
+    )
 
 
 if __name__ == "__main__":
