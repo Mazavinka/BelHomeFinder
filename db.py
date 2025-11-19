@@ -27,7 +27,6 @@ class Post(BaseModel):
     id = CharField(primary_key=True, null=False, unique=True)
     price_byn = FloatField(default=0.0, null=True)
     price_usd = FloatField(default=0.0, null=True)
-    parameters = TextField()
     address = TextField()
     short_description = CharField(max_length=150)
     post_url = TextField()
@@ -44,6 +43,13 @@ class Post(BaseModel):
     nearby_school = CharField(null=True, default='')
     nearby_bank = CharField(null=True, default='')
     nearby_shop = CharField(null=True, default='')
+
+    rooms = CharField(null=True, default='')
+    number_of_floors = CharField(null=True, default='')
+    apartment_floor = CharField(null=True, default='')
+    total_area = CharField(null=True, default='')
+    balcony = CharField(null=True, default='')
+    prepayment = CharField(null=True, default='')
 
 
 class User(BaseModel):
@@ -74,14 +80,14 @@ def create_db():
         logger.exception(f"Failed to create database tables: {e}")
 
 
-def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_description,
-                        post_url, city, lat, lon, city_district, subway, pharmacy, kindergarten, school, bank, shop):
+def save_new_post_to_db(id, price_byn, price_usd, address, short_description,
+                        post_url, city, lat, lon, city_district, subway, pharmacy, kindergarten, school, bank, shop,
+                        rooms, number_of_floors, apartment_floor, total_area, balcony, prepayment):
     try:
         with db.atomic():
             new_post, created = Post.get_or_create(id=id, defaults={
                 'price_byn': price_byn,
                 'price_usd': price_usd,
-                'parameters': parameters,
                 'address': address,
                 'short_description': short_description,
                 'post_url': post_url,
@@ -95,7 +101,13 @@ def save_new_post_to_db(id, price_byn, price_usd, parameters, address, short_des
                 'nearby_kindergarten': kindergarten,
                 'nearby_school': school,
                 'nearby_bank': bank,
-                'nearby_shop': shop
+                'nearby_shop': shop,
+                'rooms': rooms,
+                'number_of_floors': number_of_floors,
+                'apartment_floor': apartment_floor,
+                'total_area': total_area,
+                'balcony': balcony,
+                'prepayment': prepayment,
             })
             if created:
                 logger.info(f"The new record has been successfully added to database. ID: [{id}]")

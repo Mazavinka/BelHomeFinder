@@ -56,22 +56,27 @@ def get_address(parameters):
 
 
 def get_parameters(parameters):
-    data = []
-    data = {'': '', }
+    data = {'total_area': '', 'number_of_floors': '', 'balcony': '',
+            'apartment_floor': '', 'number_of_rooms': '', 'prepayment': ''
+            }
+
     for parameter in parameters.get('ad_parameters', []):
-        if parameter.get('pl') and parameter.get('pl') == "Общая площадь":
-            data.append(f"Общая площадь: {parameter.get('v')} кв.м. ")
-        elif parameter.get('pl') and parameter.get('pl') == "Комнат":
-            data.append(f"Количество комнат: {parameter.get('vl')}. ")
-        elif parameter.get('pl') and parameter.get('pl') == "Этажность дома":
-            data.append(f"Этажность дома: {parameter.get('vl')}. ")
-        elif parameter.get('pl') and parameter.get('pl') == "Этаж":
-            data.append(f"Этаж: {parameter.get('vl')[0]}. ")
-        elif parameter.get('pl') and parameter.get('pl') == "Балкон":
-            data.append(f"Балкон: {parameter.get('vl')}. ")
-        elif parameter.get('pl') and parameter.get('pl') == "Предоплата":
-            data.append(f"Предоплата: {parameter.get('vl')}. ")
-    return "".join(data)
+        parameter_name = parameter.get('pl', '')
+        if parameter_name:
+            if parameter_name == "Общая площадь":
+                data['total_area'] = parameter.get('v', '')
+            if parameter_name == "Комнат":
+                data['number_of_rooms'] = parameter.get('vl', '')
+            if parameter_name == "Этажность дома":
+                data['number_of_floors'] = parameter.get('vl', '')
+            if parameter_name == "Этаж":
+                data['apartment_floor'] = parameter.get('vl')[0]
+            if parameter_name == "Балкон":
+                data['balcony'] = parameter.get('vl')
+            if parameter_name == "Предоплата":
+                data['prepayment'] = parameter.get('vl')
+
+    return data
 
 
 def get_location(parameters):
@@ -80,8 +85,6 @@ def get_location(parameters):
             lon = parameter.get('v')[0]
             lat = parameter.get('v')[1]
             return lat, lon
-
-
 
 
 async def parse_city(session, city):
@@ -98,7 +101,6 @@ async def parse_city(session, city):
         address = get_address(ad)
         short_description = ad.get("body_short", "Без описания")
         post_url = ad.get("ad_link", "")
-        parameters = get_parameters(ad)
         lat, lon = get_location(ad)
         city_district = str(get_district_by_point(lat, lon, load_district_geojson(city))).strip().lower() or ''
 
@@ -110,11 +112,21 @@ async def parse_city(session, city):
         bank = ', '.join(get_unique_nearby_objects(nearby_obj.get('bank', []), 5)) if nearby_obj.get('bank') else ''
         convenience = ', '.join(get_unique_nearby_objects(nearby_obj.get('convenience', []), 5)) if nearby_obj.get('convenience') else ''
 
+        parameters = get_parameters(ad)
+        rooms = parameters.get('number_of_rooms', '')
+        number_of_floors = parameters.get('number_of_floors', '')
+        apartment_floor = parameters.get('apartment_floor', '')
+        total_area = parameters.get('total_area', '')
+        balcony = parameters.get('balcony', '')
+        prepayment = parameters.get('prepayment', '')
+
+
+
+
         saved = save_new_post_to_db(
             id=ad_id,
             price_byn=price_byn,
             price_usd=price_usd,
-            parameters=parameters,
             address=address,
             short_description=short_description,
             post_url=post_url,
@@ -127,7 +139,13 @@ async def parse_city(session, city):
             kindergarten=kindergarten,
             school=school,
             bank=bank,
-            shop=convenience
+            shop=convenience,
+            rooms=rooms,
+            number_of_floors=number_of_floors,
+            apartment_floor=apartment_floor,
+            total_area=total_area,
+            balcony=balcony,
+            prepayment=prepayment
 
         )
 

@@ -86,7 +86,7 @@ def post_text(post):
 🏠 *Новая квартира в аренду!*
 
 💰 *Цена:* {"Договорная" if post.price_byn == 0 else post.price_byn} BYN ({post.price_usd} USD)"
-📏 *Параметры:* {post.parameters}
+{parameters_text(post)}
 📍 *Адрес:* {post.address}
 🗺️ *Район:* {post.city_district or "Не указан"}
 
@@ -111,6 +111,33 @@ def city_name_to_rus(city_name):
 
     if city_name in cities:
         return cities[city_name]
+
+
+def parameters_text(post):
+    result = f"📏 *Параметры:* "
+    rooms = f"Комнаты: {post.rooms}." if post.rooms else ""
+    floors = f"Этаж: {post.apartment_floor} из {post.number_of_floors}." if post.apartment_floor and post.number_of_floors else ''
+    apartment_floor = f"Этаж: {post.apartment_floor}." if post.apartment_floor and not post.number_of_floors else ''
+    total_area = f"Площадь: {post.total_area}кв.м." if post.total_area else ""
+    prepayment = f"Предоплата: {post.prepayment}." if post.prepayment else ""
+    text = []
+
+    if rooms:
+        text.append(rooms)
+    if floors:
+        text.append(floors)
+    if apartment_floor:
+        text.append(apartment_floor)
+    if total_area:
+        text.append(total_area)
+    if prepayment:
+        text.append(prepayment)
+
+    return result + ' '.join(text)
+
+
+
+
 
 
 def add_nearby_text(post):
