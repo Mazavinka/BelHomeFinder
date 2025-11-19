@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 from db import save_new_post_to_db, save_new_image_to_db
 from logger import logger
-from location import load_district_geojson, get_district_by_point, find_nearby
+from location import load_district_geojson, get_district_by_point, find_nearby, get_unique_nearby_objects
 import signals
 
 # ✅ Словарь городов (Kufar использует region code)
@@ -102,12 +102,12 @@ async def parse_city(session, city):
         city_district = str(get_district_by_point(lat, lon, load_district_geojson(city))).strip().lower() or ''
 
         nearby_obj = find_nearby(lat, lon, 1000)
-        subway = ', '.join(list(nearby_obj.get('subway', []))[:5]) if nearby_obj.get('subway') else ''
-        pharmacy = ', '.join(list(nearby_obj.get('pharmacy', []))[:5]) if nearby_obj.get('pharmacy') else ''
-        kindergarten = ', '.join(list(nearby_obj.get('kindergarten', []))[:5]) if nearby_obj.get('kindergarten') else ''
-        school = ', '.join(list(nearby_obj.get('school', []))[:5]) if nearby_obj.get('school') else ''
-        bank = ', '.join(list(nearby_obj.get('bank', []))[:5]) if nearby_obj.get('bank') else ''
-        convenience = ', '.join(list(nearby_obj.get('convenience', []))[:5]) if nearby_obj.get('convenience') else ''
+        subway = ', '.join(get_unique_nearby_objects(nearby_obj.get('subway', []), 5)) if nearby_obj.get('subway') else ''
+        pharmacy = ', '.join(get_unique_nearby_objects(nearby_obj.get('pharmacy', []), 5)) if nearby_obj.get('pharmacy') else ''
+        kindergarten = ', '.join(get_unique_nearby_objects(nearby_obj.get('kindergarten', []), 5)) if nearby_obj.get('kindergarten') else ''
+        school = ', '.join(get_unique_nearby_objects(nearby_obj.get('school', []), 5)) if nearby_obj.get('school') else ''
+        bank = ', '.join(get_unique_nearby_objects(nearby_obj.get('bank', []), 5)) if nearby_obj.get('bank') else ''
+        convenience = ', '.join(get_unique_nearby_objects(nearby_obj.get('convenience', []), 5)) if nearby_obj.get('convenience') else ''
 
         saved = save_new_post_to_db(
             id=ad_id,

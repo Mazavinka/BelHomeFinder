@@ -78,6 +78,12 @@ def load_district_geojson(city):
     return districts
 
 
+def get_unique_nearby_objects(nearby_objects, limit):
+    if not nearby_objects or limit is None or limit < 1:
+        return []
+    return [obj for obj in set(nearby_objects) if obj != ''][:limit]
+
+
 def get_district_by_point(lat, lon, districts):
     if lat != 0.0 and lon != 0.0:
         point = Point(lon, lat)
