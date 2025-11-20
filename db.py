@@ -63,6 +63,7 @@ class User(BaseModel):
     city = CharField()
     district = CharField()
     is_active = BooleanField(default=False)
+    rooms_count = CharField(default='5')
 
 
 class Image(BaseModel):
@@ -127,6 +128,7 @@ def get_or_create_user(id, is_bot, first_name):
             'city': 'vitebsk',
             'is_active': False,
             'district': 'all',
+            'rooms_count': '5',
         })
         return new_user, created
     except (OperationalError, IntegrityError) as e:

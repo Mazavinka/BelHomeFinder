@@ -42,7 +42,7 @@ async def send_posts_for_new_user(new_user):
 
 async def run(interval):
     await asyncio.gather(
-        start_parse(interval),
+        #start_parse(interval),
         start_bot(),
         handle_new_post(),
         handle_new_is_active_users()

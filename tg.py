@@ -62,22 +62,33 @@ async def command_settings(message):
 
 
 async def render_settings_menu(user, message):
-    if not user.is_active:
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"🏙 Настроить город 🏙", callback_data="change_city")],
-            [InlineKeyboardButton(text=f"💰 Настроить цену 💰", callback_data="change_price")],
-            [InlineKeyboardButton(text=f"🔔 Начать рассылку 🔔", callback_data="change_activity")]
-        ])
-    else:
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"🏙 Настроить город 🏙", callback_data="change_city")],
-            [InlineKeyboardButton(text=f"💰 Настроить цену 💰", callback_data="change_price")],
-            [InlineKeyboardButton(text=f"🔕 Остановить рассылку 🔕", callback_data="change_activity")]
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"🏙 Настроить город/район 🏙", callback_data="change_city")],
+        [InlineKeyboardButton(text=f"💰 Настроить цену 💰", callback_data="change_price")],
+        [InlineKeyboardButton(text=f"🚪 Количество комнат 🚪", callback_data="count_rooms")],
+
+        [InlineKeyboardButton(text=f"🔔 Начать рассылку 🔔", callback_data="change_activity")] if not user.is_active
+        else [InlineKeyboardButton(text=f"🔕 Остановить рассылку 🔕", callback_data="change_activity")]
         ])
     try:
         await message.edit_text("⚙️ *Настройки* ⚙️", reply_markup=kb)
     except TelegramBadRequest:
         await message.edit_reply_markup(reply_markup=kb)
+
+
+@dp.callback_query(lambda c: c.data == "count_rooms")
+async def change_rooms_menu(callback):
+    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+    user_rooms_count = user.rooms_count
+    kb = rooms_keyboard_set_state(user_rooms_count)
+    await callback.message.edit_text("☑️ Выберите нужное количество комнат: ☑️", reply_markup=kb)
+
+
+@dp.callback_query(lambda c: c.data.startswith('rooms_'))
+async def choose_rooms(callback):
+    rooms_settings = callback.data.split('_', 1)[1]
+    kb = rooms_keyboard_set_state(rooms_settings)
+    await callback.message.edit_text("☑️ Выберите нужное количество комнат: ☑️", reply_markup=kb)
 
 
 @dp.callback_query(lambda c: c.data == "change_city")
@@ -261,6 +272,24 @@ def add_button_settings():
         resize_keyboard=True
     )
     return keyboard_with_settings
+
+
+def rooms_keyboard_set_state(rooms_count):
+    text_for_rooms_count = {"1": "1 комната",
+                            "2": "2 комнаты",
+                            "3": "3 комнаты",
+                            "4": "4+ комнаты]",
+                            "5": "Любое количество комнат",
+                            }
+    elements = []
+    for key, value in text_for_rooms_count.items():
+        if rooms_count == key:
+            elements.append([InlineKeyboardButton(text=f"[ ✅ {value} ✅ ]", callback_data=f"rooms_{key}")])
+        else:
+            elements.append([InlineKeyboardButton(text=value, callback_data=f"rooms_{key}")])
+
+    kb = InlineKeyboardMarkup(inline_keyboard=elements)
+    return kb
 
 
 if __name__ == "__main__":
