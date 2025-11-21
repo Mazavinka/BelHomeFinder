@@ -120,9 +120,6 @@ async def parse_city(session, city):
         balcony = parameters.get('balcony', '')
         prepayment = parameters.get('prepayment', '')
 
-
-
-
         saved = save_new_post_to_db(
             id=ad_id,
             price_byn=price_byn,
