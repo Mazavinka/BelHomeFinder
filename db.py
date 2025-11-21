@@ -63,7 +63,7 @@ class User(BaseModel):
     city = CharField()
     district = CharField()
     is_active = BooleanField(default=False)
-    rooms_count = CharField(default='5')
+    rooms_count = IntegerField(default=5)
 
 
 class Image(BaseModel):
@@ -128,7 +128,7 @@ def get_or_create_user(id, is_bot, first_name):
             'city': 'vitebsk',
             'is_active': False,
             'district': 'all',
-            'rooms_count': '5',
+            'rooms_count': 5,
         })
         return new_user, created
     except (OperationalError, IntegrityError) as e:
@@ -157,7 +157,7 @@ def get_user_by_id(user_id):
         logger.exception(f"Error. Can't found User with id: [{user_id}]. {e}")
 
 
-def get_last_five_posts(city, min_price, max_price, limit, district):
+def get_last_five_posts(city, min_price, max_price, limit, district, rooms_count):
     try:
         district = str(district).strip().lower()
         min_price = float(min_price)
@@ -166,6 +166,7 @@ def get_last_five_posts(city, min_price, max_price, limit, district):
             (Post.city == city) &
             (Post.price_byn >= min_price) &
             (Post.price_byn <= max_price)).order_by(Post.date.desc())
+        last_posts = rooms_count_filter_posts(rooms_count, last_posts)
         if district and district != "all":
             last_posts = last_posts.where(Post.city_district == district)
         return last_posts.limit(limit)
@@ -174,14 +175,34 @@ def get_last_five_posts(city, min_price, max_price, limit, district):
         return []
 
 
-def get_active_users(city, district):
+def get_active_users(city, district, rooms_count):
     try:
         city = str(city)
-        active_users = User.select().where((User.city == city) & (User.is_active == True) & ((User.district == "all") | (User.district == district)))
+        active_users = User.select().where((User.city == city) & (User.is_active == True) &
+                                           ((User.district == "all") | (User.district == district)))
+        active_users = rooms_count_filter_users(rooms_count, active_users)
         return active_users
     except (OperationalError, DataError, ValueError) as e:
         logger.exception(f"Failed to get active users for city [{city}]: {e}")
         return []
+
+
+def rooms_count_filter_users(rooms_count, users):
+    if rooms_count in [1, 2, 3]:
+        return users.where(User.rooms_count == rooms_count)
+    elif rooms_count == 4:
+        return users.where(User.rooms_count >= rooms_count)
+    else:
+        return users
+
+
+def rooms_count_filter_posts(rooms_count, posts):
+    if rooms_count in [1, 2, 3]:
+        return posts.where(Post.rooms == rooms_count)
+    elif rooms_count == 4:
+        return posts.where(Post.rooms >= rooms_count)
+    else:
+        return posts
 
 
 def get_districts_from_database(city):

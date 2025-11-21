@@ -69,7 +69,7 @@ async def render_settings_menu(user, message):
 
         [InlineKeyboardButton(text=f"🔔 Начать рассылку 🔔", callback_data="change_activity")] if not user.is_active
         else [InlineKeyboardButton(text=f"🔕 Остановить рассылку 🔕", callback_data="change_activity")]
-        ])
+    ])
     try:
         await message.edit_text("⚙️ *Настройки* ⚙️", reply_markup=kb)
     except TelegramBadRequest:
@@ -86,14 +86,25 @@ async def change_rooms_menu(callback):
 
 @dp.callback_query(lambda c: c.data.startswith('rooms_'))
 async def choose_rooms(callback):
-    rooms_settings = callback.data.split('_', 1)[1]
+    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+    rooms_settings = int(callback.data.split('_', 1)[1])
     kb = rooms_keyboard_set_state(rooms_settings)
-    await callback.message.edit_text("☑️ Выберите нужное количество комнат: ☑️", reply_markup=kb)
+
+    try:
+        await callback.message.edit_text("", reply_markup=kb)
+    except TelegramBadRequest:
+        await callback.message.edit_reply_markup(reply_markup=None)
+
+    if user.rooms_count != rooms_settings:
+        user.rooms_count = rooms_settings
+        user.save()
+        await callback.message.edit_text("Ваш выбор успешно сохранён 💾")
+    else:
+        await callback.message.edit_text("У вас уже выбран этот вариант 👌")
 
 
 @dp.callback_query(lambda c: c.data == "change_city")
 async def choose_city(callback, state):
-
     await state.set_state(CityAndDistrict.waiting_for_city)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -275,11 +286,11 @@ def add_button_settings():
 
 
 def rooms_keyboard_set_state(rooms_count):
-    text_for_rooms_count = {"1": "1 комната",
-                            "2": "2 комнаты",
-                            "3": "3 комнаты",
-                            "4": "4+ комнаты]",
-                            "5": "Любое количество комнат",
+    text_for_rooms_count = {1: "1 комната",
+                            2: "2 комнаты",
+                            3: "3 комнаты",
+                            4: "4+ комнаты",
+                            5: "Любое количество комнат",
                             }
     elements = []
     for key, value in text_for_rooms_count.items():
