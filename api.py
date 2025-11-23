@@ -3,6 +3,7 @@ import asyncio
 from db import save_new_post_to_db, save_new_image_to_db
 from logger import logger
 from location import load_district_geojson, get_district_by_point, find_nearby, get_unique_nearby_objects
+from typing import Optional, List, Any, Union
 import signals
 
 # ✅ Словарь городов (Kufar использует region code)
@@ -16,7 +17,9 @@ CITY_FILTERS = {
     }
 
 
-async def fetch_ads(session, city, limit=30):
+async def fetch_ads(session: aiohttp.ClientSession,
+                    city: str,
+                    limit: int = 30) -> Optional[Any]:
     city_filters = CITY_FILTERS.get(city.lower())
     if not city_filters:
         logger.error(f"Unknown city {city}")
@@ -47,7 +50,7 @@ async def fetch_ads(session, city, limit=30):
     return None
 
 
-def get_address(parameters):
+def get_address(parameters: dict) -> str:
     for parameter in parameters.get('account_parameters', []):
         if parameter.get('p') and parameter.get('p') == "address":
             return parameter.get('v')
@@ -55,7 +58,7 @@ def get_address(parameters):
         return "Без адреса"
 
 
-def get_parameters(parameters):
+def get_parameters(parameters: dict) -> dict:
     data = {'total_area': '', 'number_of_floors': '', 'balcony': '',
             'apartment_floor': '', 'number_of_rooms': '', 'prepayment': ''
             }
@@ -79,15 +82,16 @@ def get_parameters(parameters):
     return data
 
 
-def get_location(parameters):
+def get_location(parameters: dict) -> Optional[tuple[float, float]]:
     for parameter in parameters.get('ad_parameters', []):
         if parameter.get('pl') and parameter.get('pl') == "Координаты":
-            lon = parameter.get('v')[0]
-            lat = parameter.get('v')[1]
+            lon = float(parameter.get('v')[0])
+            lat = float(parameter.get('v')[1])
             return lat, lon
+    return None
 
 
-async def parse_city(session, city):
+async def parse_city(session: aiohttp.ClientSession, city: str) -> None:
     """Парсит конкретный город"""
     data = await fetch_ads(session, city)
     if not data or "ads" not in data:
@@ -104,7 +108,7 @@ async def parse_city(session, city):
         lat, lon = get_location(ad)
         city_district = str(get_district_by_point(lat, lon, load_district_geojson(city))).strip().lower() or ''
 
-        nearby_obj = find_nearby(lat, lon, 1000)
+        nearby_obj = find_nearby(lat, lon, 500)
         subway = ', '.join(get_unique_nearby_objects(nearby_obj.get('subway', []), 5)) if nearby_obj.get('subway') else ''
         pharmacy = ', '.join(get_unique_nearby_objects(nearby_obj.get('pharmacy', []), 5)) if nearby_obj.get('pharmacy') else ''
         kindergarten = ', '.join(get_unique_nearby_objects(nearby_obj.get('kindergarten', []), 5)) if nearby_obj.get('kindergarten') else ''
@@ -156,7 +160,7 @@ async def parse_city(session, city):
             logger.info(f"New post [{ad_id}] for city {city}")
 
 
-def price_to_float(price_):
+def price_to_float(price_: str) -> Union[float, str]:
     try:
         price = float(price_) / 100
         return price
@@ -164,7 +168,7 @@ def price_to_float(price_):
         return price_
 
 
-async def start_parse(interval=20):
+async def start_parse(interval: int = 20):
     """Запускает парсер с заданным интервалом"""
     logger.info(f"Parser has been started")
     async with aiohttp.ClientSession() as session:

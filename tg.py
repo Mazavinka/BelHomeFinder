@@ -3,6 +3,8 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, ReplyKeyboardMarkup, \
     KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message, CallbackQuery
 from aiogram.client.default import DefaultBotProperties
 from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 import asyncio
@@ -13,6 +15,8 @@ from messages import (start_message_text, min_price_text,
                       max_price_text, new_price_accepted,
                       need_number_text, city_text)
 from logger import logger
+from typing import Any
+
 
 load_dotenv()
 
@@ -34,7 +38,7 @@ class CityAndDistrict(StatesGroup):
 
 
 @dp.message(Command("start"))
-async def command_start(message):
+async def command_start(message: Message) -> None:
     user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot,
                                  message.from_user.first_name)
     await message.answer(start_message_text(message.from_user.first_name,
@@ -44,7 +48,7 @@ async def command_start(message):
 
 @dp.message(F.text == "⚙️ Настройки ⚙️")
 @dp.message(Command("settings"))
-async def command_settings(message):
+async def command_settings(message: Message) -> None:
     user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot, message.from_user.first_name)
     user_id = message.from_user.id
 
@@ -61,7 +65,7 @@ async def command_settings(message):
     await render_settings_menu(user, msg)
 
 
-async def render_settings_menu(user, message):
+async def render_settings_menu(user: Any, message: Message) -> None:
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🏙 Настроить город/район 🏙", callback_data="change_city")],
         [InlineKeyboardButton(text=f"💰 Настроить цену 💰", callback_data="change_price")],
@@ -77,7 +81,7 @@ async def render_settings_menu(user, message):
 
 
 @dp.callback_query(lambda c: c.data == "count_rooms")
-async def change_rooms_menu(callback):
+async def change_rooms_menu(callback: CallbackQuery) -> None:
     user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     user_rooms_count = user.rooms_count
     kb = rooms_keyboard_set_state(user_rooms_count)
@@ -85,7 +89,7 @@ async def change_rooms_menu(callback):
 
 
 @dp.callback_query(lambda c: c.data.startswith('rooms_'))
-async def choose_rooms(callback):
+async def choose_rooms(callback: CallbackQuery) -> None:
     user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     rooms_settings = int(callback.data.split('_', 1)[1])
     kb = rooms_keyboard_set_state(rooms_settings)
@@ -104,7 +108,7 @@ async def choose_rooms(callback):
 
 
 @dp.callback_query(lambda c: c.data == "change_city")
-async def choose_city(callback, state):
+async def choose_city(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(CityAndDistrict.waiting_for_city)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -122,7 +126,7 @@ async def choose_city(callback, state):
 
 
 @dp.callback_query(lambda c: c.data == "change_activity")
-async def change_activity(callback):
+async def change_activity(callback: CallbackQuery) -> None:
     user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     if not user.is_active:
         user.is_active = True
@@ -135,7 +139,7 @@ async def change_activity(callback):
 
 
 @dp.callback_query(CityAndDistrict.waiting_for_city, F.data.startswith("city_"))
-async def city_selected(callback, state):
+async def city_selected(callback: CallbackQuery, state: FSMContext) -> None:
     city = callback.data.split('_', 1)[1]
 
     await state.update_data(city=city)
@@ -155,7 +159,7 @@ async def city_selected(callback, state):
 
 
 @dp.callback_query(CityAndDistrict.waiting_for_district, F.data.startswith("districts_"))
-async def district_selected(callback, state):
+async def district_selected(callback: CallbackQuery, state: FSMContext) -> None:
     district = callback.data.split('_', 1)[1]
     data = await state.get_data()
     city = data['city']
@@ -171,13 +175,13 @@ async def district_selected(callback, state):
 
 
 @dp.callback_query(lambda c: c.data == "change_price")
-async def start_change_price(callback, state):
+async def start_change_price(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_text(min_price_text())
     await state.set_state(PriceRange.waiting_for_min_price)
 
 
 @dp.message(PriceRange.waiting_for_min_price)
-async def set_min_price(message, state):
+async def set_min_price(message: Message, state: FSMContext) -> None:
     text = message.text.replace(" ", "").replace(',', '.')
     if not text.replace('.', '', 1).isdigit():
         await message.answer(need_number_text())
@@ -195,7 +199,7 @@ async def set_min_price(message, state):
 
 
 @dp.message(PriceRange.waiting_for_max_price)
-async def set_max_price(message, state):
+async def set_max_price(message: Message, state: FSMContext) -> None:
     text = message.text.replace(' ', '').replace(',', '.')
     if not text.replace('.', '', 1).isdigit():
         await message.answer(need_number_text())
@@ -220,7 +224,7 @@ async def set_max_price(message, state):
     await render_settings_menu(user, msg)
 
 
-async def send_message_to_all(users_group, message):
+async def send_message_to_all(users_group: list[Any], message: str) -> None:
     for user in users_group:
         user_id = user.id
         try:
@@ -230,7 +234,7 @@ async def send_message_to_all(users_group, message):
         await asyncio.sleep(0.2)
 
 
-async def message_to_new_user(user_id, message):
+async def message_to_new_user(user_id: str, message: str) -> bool:
     try:
         await bot.send_message(user_id, message)
     except Exception as e:
@@ -245,7 +249,7 @@ async def start_bot():
     await dp.start_polling(bot)
 
 
-async def send_post_with_images(user_id, images, message):
+async def send_post_with_images(user_id: str, images: list[str], message: str) -> None:
     media = []
     for i, img in enumerate(images[:10]):
         if i == 0:
@@ -275,7 +279,7 @@ async def send_post_with_images(user_id, images, message):
     await asyncio.sleep(1.5)
 
 
-def add_button_settings():
+def add_button_settings() -> ReplyKeyboardMarkup:
     keyboard_with_settings = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="⚙️ Настройки ⚙️")]
@@ -285,7 +289,7 @@ def add_button_settings():
     return keyboard_with_settings
 
 
-def rooms_keyboard_set_state(rooms_count):
+def rooms_keyboard_set_state(rooms_count: int) -> InlineKeyboardMarkup:
     text_for_rooms_count = {1: "1 комната",
                             2: "2 комнаты",
                             3: "3 комнаты",

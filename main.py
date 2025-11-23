@@ -4,6 +4,11 @@ from db import get_last_five_posts, get_active_users
 from tg import start_bot, message_to_new_user, send_message_to_all, send_post_with_images
 from api import start_parse
 from messages import post_text
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from db import Post, User
+
 
 
 async def handle_new_post():
@@ -18,7 +23,7 @@ async def handle_new_is_active_users():
         asyncio.create_task(send_posts_for_new_user(new_user))
 
 
-async def send_new_post_to_users(city, post):
+async def send_new_post_to_users(city: str, post: "Post") -> None:
     active_users = get_active_users(city, post.city_district, post.rooms)
     users_with_true_price_filters = [user for user in active_users if user.min_price <= post.price_byn <= user.max_price]
     if not post.is_sent:
@@ -31,7 +36,7 @@ async def send_new_post_to_users(city, post):
         post.save()
 
 
-async def send_posts_for_new_user(new_user):
+async def send_posts_for_new_user(new_user: "User") -> None:
     posts = get_last_five_posts(new_user.city, new_user.min_price, new_user.max_price, 5, new_user.district, new_user.rooms_count)
     for post in posts:
         if post.images:
@@ -42,7 +47,7 @@ async def send_posts_for_new_user(new_user):
 
 async def run(interval):
     await asyncio.gather(
-        #start_parse(interval),
+        start_parse(interval),
         start_bot(),
         handle_new_post(),
         handle_new_is_active_users()

@@ -141,7 +141,7 @@ def parameters_text(post):
 
 
 def add_nearby_text(post):
-    header = "🌀 *В радиусе километра есть:*\n"
+    header = "🌀 *В радиусе 500 метров:*\n"
     subway = f"Ⓜ️ *Метро:* {post.nearby_subway}" if post.nearby_subway else ""
     pharmacy = f"💊 *Аптеки:* {post.nearby_pharmacy}" if post.nearby_pharmacy else ""
     kindergarten = f"🧸 *Детские учреждения:* {post.nearby_kindergarten}" if post.nearby_kindergarten else ""

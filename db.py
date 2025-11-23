@@ -1,5 +1,7 @@
 import signals
 from peewee import *
+from peewee import ModelSelect
+from typing import Union
 from datetime import datetime
 from dotenv import load_dotenv
 import os
@@ -81,9 +83,28 @@ def create_db():
         logger.exception(f"Failed to create database tables: {e}")
 
 
-def save_new_post_to_db(id, price_byn, price_usd, address, short_description,
-                        post_url, city, lat, lon, city_district, subway, pharmacy, kindergarten, school, bank, shop,
-                        rooms, number_of_floors, apartment_floor, total_area, balcony, prepayment):
+def save_new_post_to_db(id: str,
+                        price_byn: float,
+                        price_usd: float,
+                        address: str,
+                        short_description: str,
+                        post_url: str,
+                        city: str,
+                        lat: float,
+                        lon: str,
+                        city_district: str,
+                        subway: str,
+                        pharmacy: str,
+                        kindergarten: str,
+                        school: str,
+                        bank: str,
+                        shop: str,
+                        rooms: str,
+                        number_of_floors: str,
+                        apartment_floor: str,
+                        total_area: str,
+                        balcony: str,
+                        prepayment: str) -> bool:
     try:
         with db.atomic():
             new_post, created = Post.get_or_create(id=id, defaults={
@@ -118,7 +139,7 @@ def save_new_post_to_db(id, price_byn, price_usd, address, short_description,
         logger.exception(f"Error saving recor to database. ID: [{id}]. {e}")
 
 
-def get_or_create_user(id, is_bot, first_name):
+def get_or_create_user(id: int, is_bot: bool, first_name: str) -> Union[ModelSelect, list[User]]:
     try:
         new_user, created = User.get_or_create(id=id, defaults={
             'is_bot': is_bot,
@@ -135,7 +156,7 @@ def get_or_create_user(id, is_bot, first_name):
         logger.exception(f"Error creating or getting user [{id}]: {e}")
 
 
-def save_new_image_to_db(src, post_id):
+def save_new_image_to_db(src: str, post_id: str) -> bool:
     if not src or not post_id:
         return False
 
@@ -149,7 +170,7 @@ def save_new_image_to_db(src, post_id):
         return False
 
 
-def get_user_by_id(user_id):
+def get_user_by_id(user_id: str) -> User:
     try:
         user = User.get(User.id == user_id)
         return user
@@ -157,7 +178,7 @@ def get_user_by_id(user_id):
         logger.exception(f"Error. Can't found User with id: [{user_id}]. {e}")
 
 
-def get_last_five_posts(city, min_price, max_price, limit, district, rooms_count):
+def get_last_five_posts(city: str, min_price: float, max_price: float, limit: int, district: str, rooms_count: int) -> Union[ModelSelect, list[Post]]:
     try:
         district = str(district).strip().lower()
         min_price = float(min_price)
@@ -175,7 +196,7 @@ def get_last_five_posts(city, min_price, max_price, limit, district, rooms_count
         return []
 
 
-def get_active_users(city, district, rooms_count):
+def get_active_users(city: str, district: str, rooms_count: int) -> Union[ModelSelect, list[User]]:
     try:
         city = str(city)
         active_users = User.select().where((User.city == city) & (User.is_active == True) &
@@ -187,7 +208,7 @@ def get_active_users(city, district, rooms_count):
         return []
 
 
-def rooms_count_filter_users(rooms_count, users):
+def rooms_count_filter_users(rooms_count: int, users: ModelSelect) -> ModelSelect:
     if rooms_count in [1, 2, 3]:
         return users.where(User.rooms_count == rooms_count)
     elif rooms_count == 4:
@@ -196,7 +217,7 @@ def rooms_count_filter_users(rooms_count, users):
         return users
 
 
-def rooms_count_filter_posts(rooms_count, posts):
+def rooms_count_filter_posts(rooms_count: int, posts: ModelSelect) -> ModelSelect:
     if rooms_count in [1, 2, 3]:
         return posts.where(Post.rooms == rooms_count)
     elif rooms_count == 4:
@@ -205,7 +226,7 @@ def rooms_count_filter_posts(rooms_count, posts):
         return posts
 
 
-def get_districts_from_database(city):
+def get_districts_from_database(city: str) -> list:
     city = str(city).strip().lower()
     data = {"minsk": [], "vitebsk": [], "grodno": [], "mogilev": [], "gomel": [], "brest": []}
     for post in Post.select():
@@ -214,14 +235,14 @@ def get_districts_from_database(city):
     return data[city]
 
 
-def add_column_to_table(model_name, new_column, field_type,  db=db):
+def add_column_to_table(model_name: Model, new_column: Model, field_type: Field,  db: Database = db) -> None:
     migrator = SqliteMigrator(db)
     migrate(
         migrator.add_column(model_name, new_column, field_type)
     )
 
 
-def drop_column_from_table(model_name, column):
+def drop_column_from_table(model_name: Model, column: str) -> None:
     migrator = SqliteMigrator(db)
     migrate(
         migrator.drop_column(model_name, column)
