@@ -1,113 +1,53 @@
-import signals
-from peewee import *
-from peewee import ModelSelect
-from typing import Union
-from datetime import datetime
-from dotenv import load_dotenv
-import os
-from playhouse.migrate import *
-from playhouse.signals import Model
+from models import User, Post, Image
 from logger import logger
+import os
+from typing import Any
+from tortoise.exceptions import IntegrityError, OperationalError, DoesNotExist
+from tortoise.queryset import QuerySet
+from tortoise.expressions import Q
+from tortoise import Tortoise
+from dotenv import load_dotenv
 
 load_dotenv()
 
-db = SqliteDatabase(os.getenv("DB_PATH"), pragmas={
-    'journal_mode': 'delete',
-    'cache_size': -1024 * 64,
-    'foreign_keys': 1,
-    'ignore_check_constraints': 0,
-    'synchronous': 1
-}, check_same_thread=False)
+TORTOISE_ORM = {
+    "connections": {
+        "default": os.getenv("DB_PATH"),
+    },
+    "apps": {
+        "models": {
+            "models": ["models", "aerich.models"],
+            "default_connection": "default",
+        }
+    }
+}
 
 
-class BaseModel(Model):
-    class Meta:
-        database = db
-
-
-class Post(BaseModel):
-    id = CharField(primary_key=True, null=False, unique=True)
-    price_byn = FloatField(default=0.0, null=True)
-    price_usd = FloatField(default=0.0, null=True)
-    address = TextField()
-    short_description = CharField(max_length=150)
-    post_url = TextField()
-    date = DateTimeField(default=datetime.now)
-    city = CharField(null=False)
-    is_sent = BooleanField(null=False, default=False)
-    lat = FloatField(null=True)
-    lon = FloatField(null=True)
-    city_district = CharField(null=True)
-
-    nearby_subway = CharField(null=True, default='')
-    nearby_pharmacy = CharField(null=True, default='')
-    nearby_kindergarten = CharField(null=True, default='')
-    nearby_school = CharField(null=True, default='')
-    nearby_bank = CharField(null=True, default='')
-    nearby_shop = CharField(null=True, default='')
-
-    rooms = CharField(null=True, default='')
-    number_of_floors = CharField(null=True, default='')
-    apartment_floor = CharField(null=True, default='')
-    total_area = CharField(null=True, default='')
-    balcony = CharField(null=True, default='')
-    prepayment = CharField(null=True, default='')
-
-
-class User(BaseModel):
-    id = CharField(primary_key=True, null=False)
-    is_bot = BooleanField(default=False)
-    first_name = TextField()
-    is_premium = BooleanField(default=False)
-
-    min_price = FloatField()
-    max_price = FloatField()
-    city = CharField()
-    district = CharField()
-    is_active = BooleanField(default=False)
-    rooms_count = IntegerField(default=5)
-
-
-class Image(BaseModel):
-    id = AutoField(null=False)
-    image_src = TextField(unique=True)
-    loaded_to = CharField(default='/img')
-    from_post = ForeignKeyField(Post, backref='images', on_delete='CASCADE')
-
-
-def create_db():
+async def save_new_post_to_db(id: str,
+                              price_byn: float,
+                              price_usd: float,
+                              address: str,
+                              short_description: str,
+                              post_url: str,
+                              city: str,
+                              lat: float,
+                              lon: float,
+                              city_district: str,
+                              subway: str,
+                              pharmacy: str,
+                              kindergarten: str,
+                              school: str,
+                              bank: str,
+                              shop: str,
+                              rooms: str,
+                              number_of_floors: str,
+                              apartment_floor: str,
+                              total_area: str,
+                              balcony: str,
+                              prepayment: str) -> bool:
     try:
-        with db:
-            db.create_tables([Post, User, Image], safe=True)
-    except (OperationalError, ProgrammingError) as e:
-        logger.exception(f"Failed to create database tables: {e}")
-
-
-def save_new_post_to_db(id: str,
-                        price_byn: float,
-                        price_usd: float,
-                        address: str,
-                        short_description: str,
-                        post_url: str,
-                        city: str,
-                        lat: float,
-                        lon: str,
-                        city_district: str,
-                        subway: str,
-                        pharmacy: str,
-                        kindergarten: str,
-                        school: str,
-                        bank: str,
-                        shop: str,
-                        rooms: str,
-                        number_of_floors: str,
-                        apartment_floor: str,
-                        total_area: str,
-                        balcony: str,
-                        prepayment: str) -> bool:
-    try:
-        with db.atomic():
-            new_post, created = Post.get_or_create(id=id, defaults={
+        new_post, created = await Post.get_or_create(
+            id=id, defaults={
                 'price_byn': price_byn,
                 'price_usd': price_usd,
                 'address': address,
@@ -131,17 +71,19 @@ def save_new_post_to_db(id: str,
                 'balcony': balcony,
                 'prepayment': prepayment,
             })
-            if created:
-                logger.info(f"The new record has been successfully added to database. ID: [{id}]")
-                return True
-            return False
+        if created:
+            logger.info(f"The new record has been successfully added to database. ID: [{id}]")
+            return True
+        return False
+    except IntegrityError:
+        logger.info(f"Post{id} already exists")
     except Exception as e:
         logger.exception(f"Error saving recor to database. ID: [{id}]. {e}")
 
 
-def get_or_create_user(id: int, is_bot: bool, first_name: str) -> Union[ModelSelect, list[User]]:
+async def get_or_create_user(id: int, is_bot: bool, first_name: str) -> tuple[Any, Any]:
     try:
-        new_user, created = User.get_or_create(id=id, defaults={
+        new_user, created = await User.get_or_create(id=id, defaults={
             'is_bot': is_bot,
             'first_name': first_name,
             'min_price': 1,
@@ -154,100 +96,99 @@ def get_or_create_user(id: int, is_bot: bool, first_name: str) -> Union[ModelSel
         return new_user, created
     except (OperationalError, IntegrityError) as e:
         logger.exception(f"Error creating or getting user [{id}]: {e}")
+        return None, False
 
 
-def save_new_image_to_db(src: str, post_id: str) -> bool:
+async def save_new_image_to_db(src: str, post_id: str) -> bool:
     if not src or not post_id:
         return False
 
     try:
-        with db.atomic():
-            new_image = Image.insert(image_src=src, from_post=post_id).on_conflict_ignore().execute()
-        if new_image:
-            return True
-    except (OperationalError, IntegrityError) as e:
-        logger.exception(f"Failed to save image for post [{post_id}]")
+        post = await Post.get(id=post_id)
+    except DoesNotExist as e:
+        logger.exception(f"Skip image, post [{post_id}] does not exist")
+        return False
+
+    try:
+        await Image.get_or_create(image_src=src, defaults={"from_post": post})
+        return True
+    except Exception as e:
+        logger.exception(f"Failed to save image for post [{post_id}] -> {e}")
         return False
 
 
-def get_user_by_id(user_id: str) -> User:
+
+async def get_user_by_id(user_id: str) -> User:
     try:
-        user = User.get(User.id == user_id)
-        return user
+        return await User.get(User.id == user_id)
+    except DoesNotExist:
+        logger.warning(f"User with id {user_id} not found")
     except Exception as e:
         logger.exception(f"Error. Can't found User with id: [{user_id}]. {e}")
 
 
-def get_last_five_posts(city: str, min_price: float, max_price: float, limit: int, district: str, rooms_count: int) -> Union[ModelSelect, list[Post]]:
+async def get_last_five_posts(city: str, min_price: float, max_price: float, limit: int, district: str,
+                              rooms_count: int) -> list[Post]:
     try:
         district = str(district).strip().lower()
-        min_price = float(min_price)
-        max_price = float(max_price)
-        last_posts = Post.select().where(
-            (Post.city == city) &
-            (Post.price_byn >= min_price) &
-            (Post.price_byn <= max_price)).order_by(Post.date.desc())
+        min_price = min_price
+        max_price = max_price
+        last_posts = Post.filter(city=city, price_byn__gte=min_price, price_byn__lte=max_price)
         last_posts = rooms_count_filter_posts(rooms_count, last_posts)
         if district and district != "all":
-            last_posts = last_posts.where(Post.city_district == district)
-        return last_posts.limit(limit)
-    except (OperationalError, DataError, ValueError) as e:
+            last_posts = last_posts.filter(city_district=district)
+        return await last_posts.order_by("-date").limit(limit)
+    except Exception as e:
         logger.exception(f"Failed to get posts for city [{city}]: {e}")
         return []
 
 
-def get_active_users(city: str, district: str, rooms_count: int) -> Union[ModelSelect, list[User]]:
-    try:
-        city = str(city)
-        active_users = User.select().where((User.city == city) & (User.is_active == True) &
-                                           ((User.district == "all") | (User.district == district)))
-        active_users = rooms_count_filter_users(rooms_count, active_users)
-        return active_users
-    except (OperationalError, DataError, ValueError) as e:
-        logger.exception(f"Failed to get active users for city [{city}]: {e}")
-        return []
-
-
-def rooms_count_filter_users(rooms_count: int, users: ModelSelect) -> ModelSelect:
+def rooms_count_filter_users(rooms_count: int, users: QuerySet[User]) -> QuerySet[User]:
     if rooms_count in [1, 2, 3]:
-        return users.where(User.rooms_count == rooms_count)
+        return users.filter(rooms_count=rooms_count)
     elif rooms_count == 4:
-        return users.where(User.rooms_count >= rooms_count)
+        return users.filter(rooms_count__gte=4)
     else:
         return users
 
 
-def rooms_count_filter_posts(rooms_count: int, posts: ModelSelect) -> ModelSelect:
+def rooms_count_filter_posts(rooms_count: int, posts: QuerySet[Post]) -> QuerySet[Post]:
     if rooms_count in [1, 2, 3]:
-        return posts.where(Post.rooms == rooms_count)
+        return posts.filter(rooms=rooms_count)
     elif rooms_count == 4:
-        return posts.where(Post.rooms >= rooms_count)
+        return posts.filter(rooms__gte=4)
     else:
         return posts
 
 
-def get_districts_from_database(city: str) -> list:
+async def get_districts_from_database(city: str) -> list:
     city = str(city).strip().lower()
     data = {"minsk": [], "vitebsk": [], "grodno": [], "mogilev": [], "gomel": [], "brest": []}
-    for post in Post.select():
-        if post.city_district not in data[post.city]:
-            data[post.city].append(str(post.city_district).strip().lower())
+    districts = await Post.filter(city=city).exclude(city_district__isnull=True).exclude(
+        city_district="").distinct().values_list("city_district", flat=True)
+
+    for d in districts:
+        data[city].append(d.strip().lower())
     return data[city]
 
 
-def add_column_to_table(model_name: Model, new_column: Model, field_type: Field,  db: Database = db) -> None:
-    migrator = SqliteMigrator(db)
-    migrate(
-        migrator.add_column(model_name, new_column, field_type)
+async def get_active_users(city: str, district: str, rooms_count: int) -> QuerySet[User]:
+    try:
+        return rooms_count_filter_users(rooms_count,
+                                        User.filter(
+                                            Q(city=city),
+                                            Q(is_active=True),
+                                            Q(district="all") | Q(district=district)
+                                        ))
+    except Exception as e:
+        logger.exception(f"Failed to get active users for city [{city}]: {e}")
+        return User.filter(id=0)
+
+
+async def init_db():
+    await Tortoise.init(
+        db_url=os.getenv("DB_PATH"),
+        modules={"models": ["models"]}
     )
 
-
-def drop_column_from_table(model_name: Model, column: str) -> None:
-    migrator = SqliteMigrator(db)
-    migrate(
-        migrator.drop_column(model_name, column)
-    )
-
-
-if __name__ == "__main__":
-    create_db()
+    await Tortoise.generate_schemas(safe=True)

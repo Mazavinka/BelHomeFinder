@@ -16,6 +16,7 @@ from messages import (start_message_text, min_price_text,
                       need_number_text, city_text)
 from logger import logger
 from typing import Any
+from models import Image, User
 
 
 load_dotenv()
@@ -39,7 +40,7 @@ class CityAndDistrict(StatesGroup):
 
 @dp.message(Command("start"))
 async def command_start(message: Message) -> None:
-    user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot,
+    user, _ = await get_or_create_user(message.from_user.id, message.from_user.is_bot,
                                  message.from_user.first_name)
     await message.answer(start_message_text(message.from_user.first_name,
                                             user.city, user.min_price,
@@ -49,7 +50,7 @@ async def command_start(message: Message) -> None:
 @dp.message(F.text == "⚙️ Настройки ⚙️")
 @dp.message(Command("settings"))
 async def command_settings(message: Message) -> None:
-    user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot, message.from_user.first_name)
+    user, _ = await get_or_create_user(message.from_user.id, message.from_user.is_bot, message.from_user.first_name)
     user_id = message.from_user.id
 
     old_message_id = setting_messages.get(user_id)
@@ -65,7 +66,7 @@ async def command_settings(message: Message) -> None:
     await render_settings_menu(user, msg)
 
 
-async def render_settings_menu(user: Any, message: Message) -> None:
+async def render_settings_menu(user: User, message: Message) -> None:
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🏙 Настроить город/район 🏙", callback_data="change_city")],
         [InlineKeyboardButton(text=f"💰 Настроить цену 💰", callback_data="change_price")],
@@ -82,7 +83,7 @@ async def render_settings_menu(user: Any, message: Message) -> None:
 
 @dp.callback_query(lambda c: c.data == "count_rooms")
 async def change_rooms_menu(callback: CallbackQuery) -> None:
-    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+    user, _ = await get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     user_rooms_count = user.rooms_count
     kb = rooms_keyboard_set_state(user_rooms_count)
     await callback.message.edit_text("☑️ Выберите нужное количество комнат: ☑️", reply_markup=kb)
@@ -90,7 +91,7 @@ async def change_rooms_menu(callback: CallbackQuery) -> None:
 
 @dp.callback_query(lambda c: c.data.startswith('rooms_'))
 async def choose_rooms(callback: CallbackQuery) -> None:
-    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+    user, _ = await get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     rooms_settings = int(callback.data.split('_', 1)[1])
     kb = rooms_keyboard_set_state(rooms_settings)
 
@@ -101,7 +102,7 @@ async def choose_rooms(callback: CallbackQuery) -> None:
 
     if user.rooms_count != rooms_settings:
         user.rooms_count = rooms_settings
-        user.save()
+        await user.save()
         await callback.message.edit_text("Ваш выбор успешно сохранён 💾")
     else:
         await callback.message.edit_text("У вас уже выбран этот вариант 👌")
@@ -127,14 +128,14 @@ async def choose_city(callback: CallbackQuery, state: FSMContext) -> None:
 
 @dp.callback_query(lambda c: c.data == "change_activity")
 async def change_activity(callback: CallbackQuery) -> None:
-    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+    user, _ = await get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     if not user.is_active:
         user.is_active = True
-        user.save()
+        await user.save()
         await callback.message.edit_text(f"✅ Рассылка *включена*! Теперь я буду присылать тебе новые объявления 📩")
     else:
         user.is_active = False
-        user.save()
+        await user.save()
         await callback.message.edit_text(f"🚫 Рассылка *приостановлена*. Ты можешь включить её снова в любое время.")
 
 
@@ -146,9 +147,9 @@ async def city_selected(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.set_state(CityAndDistrict.waiting_for_district)
 
-    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+    user, _ = await get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
 
-    districts = get_districts_from_database(city)
+    districts = await get_districts_from_database(city)
 
     keyboard_with_districts = [[InlineKeyboardButton(text=district, callback_data=f"districts_{district}")] for district
                                in districts]
@@ -163,10 +164,10 @@ async def district_selected(callback: CallbackQuery, state: FSMContext) -> None:
     district = callback.data.split('_', 1)[1]
     data = await state.get_data()
     city = data['city']
-    user, _ = get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
+    user, _ = await get_or_create_user(callback.from_user.id, callback.from_user.is_bot, callback.from_user.first_name)
     user.city = city
     user.district = district
-    user.save()
+    await user.save()
 
     await state.clear()
 
@@ -214,17 +215,17 @@ async def set_max_price(message: Message, state: FSMContext) -> None:
         await message.answer(f"⚠️ Максимальная цена должна быть больше минимальной.")
         return
 
-    user, _ = get_or_create_user(message.from_user.id, message.from_user.is_bot, message.from_user.first_name)
+    user, _ = await get_or_create_user(message.from_user.id, message.from_user.is_bot, message.from_user.first_name)
     user.min_price = min_price
     user.max_price = max_price
-    user.save()
+    await user.save()
 
     await state.clear()
     msg = await message.answer(new_price_accepted(min_price, max_price))
     await render_settings_menu(user, msg)
 
 
-async def send_message_to_all(users_group: list[Any], message: str) -> None:
+async def send_message_to_all(users_group: list[User], message: str) -> None:
     for user in users_group:
         user_id = user.id
         try:
@@ -249,7 +250,7 @@ async def start_bot():
     await dp.start_polling(bot)
 
 
-async def send_post_with_images(user_id: str, images: list[str], message: str) -> None:
+async def send_post_with_images(user_id: str, images: list[Image], message: str) -> None:
     media = []
     for i, img in enumerate(images[:10]):
         if i == 0:
@@ -266,9 +267,9 @@ async def send_post_with_images(user_id: str, images: list[str], message: str) -
         except TelegramBadRequest as e:
             if "USER_IS_BLOCKED" in str(e):
                 logger.info(f"User [{user_id}] was block bot")
-                user = get_user_by_id(user_id)
+                user = await get_user_by_id(user_id)
                 user.is_active = False
-                user.save()
+                await user.save()
                 return
             else:
                 logger.exception(f"BadRequest for {user_id}: {e}")

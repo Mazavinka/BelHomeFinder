@@ -3,8 +3,7 @@ import asyncio
 from db import save_new_post_to_db, save_new_image_to_db
 from logger import logger
 from location import load_district_geojson, get_district_by_point, find_nearby, get_unique_nearby_objects
-from typing import Optional, List, Any, Union
-import signals
+from typing import Optional, Any, Union
 
 # ✅ Словарь городов (Kufar использует region code)
 CITY_FILTERS = {
@@ -88,7 +87,7 @@ def get_location(parameters: dict) -> Optional[tuple[float, float]]:
             lon = float(parameter.get('v')[0])
             lat = float(parameter.get('v')[1])
             return lat, lon
-    return None
+    return 0.0, 0.0
 
 
 async def parse_city(session: aiohttp.ClientSession, city: str) -> None:
@@ -106,7 +105,8 @@ async def parse_city(session: aiohttp.ClientSession, city: str) -> None:
         short_description = ad.get("body_short", "Без описания")
         post_url = ad.get("ad_link", "")
         lat, lon = get_location(ad)
-        city_district = str(get_district_by_point(lat, lon, load_district_geojson(city))).strip().lower() or ''
+        district = get_district_by_point(lat, lon, load_district_geojson(city))
+        city_district = district.lower().strip() if district else ""
 
         nearby_obj = find_nearby(lat, lon, 500)
         subway = ', '.join(get_unique_nearby_objects(nearby_obj.get('subway', []), 5)) if nearby_obj.get('subway') else ''
@@ -124,7 +124,7 @@ async def parse_city(session: aiohttp.ClientSession, city: str) -> None:
         balcony = parameters.get('balcony', '')
         prepayment = parameters.get('prepayment', '')
 
-        saved = save_new_post_to_db(
+        saved = await save_new_post_to_db(
             id=ad_id,
             price_byn=price_byn,
             price_usd=price_usd,
@@ -150,11 +150,13 @@ async def parse_city(session: aiohttp.ClientSession, city: str) -> None:
 
         )
 
-        images = ad.get("images", "-")
+        images = ad.get("images", [])
         for img in images:
-            if img:
-                path = "https://rms.kufar.by/v1/list_thumbs_2x/" + img['path']
-                save_new_image_to_db(path, ad_id)
+            path = img.get('path')
+            if not path:
+                continue
+            url = f"https://rms.kufar.by/v1/list_thumbs_2x/{path}"
+            await save_new_image_to_db(url, ad_id)
 
         if saved:
             logger.info(f"New post [{ad_id}] for city {city}")
