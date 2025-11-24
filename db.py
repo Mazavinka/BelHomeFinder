@@ -117,7 +117,6 @@ async def save_new_image_to_db(src: str, post_id: str) -> bool:
         return False
 
 
-
 async def get_user_by_id(user_id: str) -> User:
     try:
         return await User.get(User.id == user_id)
