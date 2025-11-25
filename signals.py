@@ -15,10 +15,10 @@ async def on_user_update(sender: Type[User], instance: User, created: bool, usin
         safe_put(user_queue, instance)
 
 
-@post_save(Post)
+"""@post_save(Post)
 async def on_post_created(sender: Type[Post], instance: Post, created: bool, using_db, update_fields) -> None:
     if created:
-        safe_put(post_queue, instance)
+        safe_put(post_queue, instance)"""
 
 
 def safe_put(queue: asyncio.Queue, item: Any) -> None:

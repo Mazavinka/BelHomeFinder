@@ -268,6 +268,9 @@ async def send_post_with_images(user_id: str, images: list[Image], message: str)
             if "USER_IS_BLOCKED" in str(e):
                 logger.info(f"User [{user_id}] was block bot")
                 user = await get_user_by_id(user_id)
+                if not user:
+                    logger.error(f"User {user_id} not found, skip deactivation")
+                    return
                 user.is_active = False
                 await user.save()
                 return

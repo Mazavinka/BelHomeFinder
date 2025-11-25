@@ -119,7 +119,7 @@ async def save_new_image_to_db(src: str, post_id: str) -> bool:
 
 async def get_user_by_id(user_id: str) -> User:
     try:
-        return await User.get(User.id == user_id)
+        return await User.get(id=user_id)
     except DoesNotExist:
         logger.warning(f"User with id {user_id} not found")
     except Exception as e:

@@ -4,6 +4,8 @@ from db import save_new_post_to_db, save_new_image_to_db
 from logger import logger
 from location import load_district_geojson, get_district_by_point, find_nearby, get_unique_nearby_objects
 from typing import Optional, Any, Union
+from signals import safe_put, post_queue
+from models import Post
 
 # ✅ Словарь городов (Kufar использует region code)
 CITY_FILTERS = {
@@ -160,6 +162,9 @@ async def parse_city(session: aiohttp.ClientSession, city: str) -> None:
 
         if saved:
             logger.info(f"New post [{ad_id}] for city {city}")
+
+        post = await Post.get(id=ad_id)
+        safe_put(post_queue, post)
 
 
 def price_to_float(price_: str) -> Union[float, str]:
